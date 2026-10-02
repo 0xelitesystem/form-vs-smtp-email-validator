@@ -1,0 +1,1020 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Form vs SMTP Email Validator - the browser rule, RFC 5322 and RFC 5321 side by side</title>
+<meta name="description" content="Paste email addresses and see whether the browser's type=email rule, RFC 5322 and RFC 5321 each accept them, which rule decided each verdict, and the quoted form SMTP needs when they disagree.">
+<link rel="canonical" href="https://0xelitesystem.github.io/form-vs-smtp-email-validator/">
+<meta property="og:title" content="Form vs SMTP Email Validator">
+<meta property="og:description" content="The browser's type=email rule, RFC 5322 and RFC 5321 side by side on every address you paste, with the deciding rule and the minimally quoted SMTP form.">
+<meta property="og:url" content="https://0xelitesystem.github.io/form-vs-smtp-email-validator/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Form vs SMTP Email Validator","applicationCategory":"DeveloperApplication","operatingSystem":"Any (browser)","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"url":"https://0xelitesystem.github.io/form-vs-smtp-email-validator/","author":{"@type":"Person","name":"0xelitesystem","url":"https://elitesystem.ai"}}
+</script>
+<style>
+:root{
+  color-scheme: dark;
+  --bg:#0a0a0a; --bg-deep:#050505; --surface:#111110; --surface-2:#161614;
+  --ink:#e8e8e3; --ink-soft:#a8a8a3; --muted:#6e6e68; --rule:#1f1f1d;
+  --rule-2:#2a2a27; --accent:#d4ff3a; --accent-2:#ffb454; --on-accent:#0a0a0a;
+  --code-bg:#111110; --ok:#7ddc7d; --warn:#ffb454; --err:#ff6450; --info:#6fd3e0;
+}
+:root[data-theme="light"]{
+  color-scheme: light;
+  --bg:#e8ebef; --bg-deep:#f4f5f8; --surface:#dee2e8; --surface-2:#d3d7df;
+  --ink:#0a0a0a; --ink-soft:#2a2a27; --muted:#6e6e68; --rule:#c8cdd5;
+  --rule-2:#aab0ba; --accent:#2d6b00; --accent-2:#8a4d00; --on-accent:#ffffff;
+  --code-bg:#dee2e8; --ok:#1a5c2e; --warn:#8a4d00; --err:#a82d14; --info:#0f5c60;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    color-scheme: light;
+    --bg:#e8ebef; --bg-deep:#f4f5f8; --surface:#dee2e8; --surface-2:#d3d7df;
+    --ink:#0a0a0a; --ink-soft:#2a2a27; --muted:#6e6e68; --rule:#c8cdd5;
+    --rule-2:#aab0ba; --accent:#2d6b00; --accent-2:#8a4d00; --on-accent:#ffffff;
+    --code-bg:#dee2e8; --ok:#1a5c2e; --warn:#8a4d00; --err:#a82d14; --info:#0f5c60;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 16px 64px}
+header.top{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:8px}
+h1{font-size:26px;line-height:1.25;margin:0 0 6px}
+.tag{color:var(--ink-soft);margin:0;max-width:70ch}
+h2{font-size:19px;margin:34px 0 8px;padding-top:14px;border-top:1px solid var(--rule)}
+h3{font-size:16px;margin:18px 0 6px}
+p{margin:8px 0}
+a{color:var(--accent);text-decoration:underline}
+a:hover{color:var(--ink)}
+button,select,input,textarea{font-family:inherit;font-size:15px}
+button{background:var(--surface-2);color:var(--ink);border:1px solid var(--rule-2);border-radius:6px;padding:8px 13px;cursor:pointer}
+button:hover{border-color:var(--accent);color:var(--ink)}
+button:focus-visible,textarea:focus-visible,input:focus-visible,a:focus-visible,.scroll:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:700}
+textarea,input[type=email]{
+  width:100%;background:var(--code-bg);color:var(--ink);border:1px solid var(--ink-soft);border-radius:6px;padding:11px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;font-size:14px;line-height:1.55;
+}
+textarea{min-height:170px;resize:vertical}
+label{color:var(--ink-soft);font-size:14px;display:block;margin:6px 0 4px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:14px;margin:12px 0}
+pre,code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+pre{background:var(--code-bg);border:1px solid var(--rule);border-radius:6px;padding:11px;overflow-x:auto;margin:8px 0;font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+code{font-size:.92em;background:var(--code-bg);border:1px solid var(--rule);border-radius:4px;padding:1px 4px;word-break:break-word}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--rule);border-radius:8px;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:980px;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{background:var(--surface-2);color:var(--ink);font-weight:700}
+th small{display:block;font-weight:400;color:var(--ink-soft);font-size:12px;word-break:break-all;max-width:220px}
+td.addr code{white-space:pre-wrap;word-break:break-all;display:inline-block;max-width:220px}
+tr.notes td{background:var(--surface);color:var(--ink-soft);font-size:13.5px}
+tr.notes ul{margin:0;padding-left:18px}
+.v{display:inline-block;font-weight:700;font-size:12.5px;letter-spacing:.02em;border:1px solid currentColor;border-radius:4px;padding:0 6px;margin-bottom:3px}
+.v-ok{color:var(--ok)}
+.v-warn{color:var(--warn)}
+.v-err{color:var(--err)}
+.v-info{color:var(--info)}
+.why{color:var(--ink-soft);font-size:13px;word-break:break-word}
+.soft{color:var(--ink-soft)}
+.msg{border-radius:6px;padding:10px 12px;margin:10px 0;border:1px solid var(--rule-2);background:var(--surface-2)}
+.msg.err{border-color:var(--err);color:var(--err)}
+.msg.ok{border-color:var(--ok);color:var(--ok)}
+dl.live{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:10px 0}
+dl.live dt{color:var(--ink-soft)}
+dl.live dd{margin:0;word-break:break-all}
+ul,ol{margin:8px 0;padding-left:22px}
+li{margin:5px 0}
+blockquote{margin:10px 0;padding:6px 14px;border-left:3px solid var(--rule-2);color:var(--ink)}
+details{margin:8px 0}
+summary{cursor:pointer;color:var(--ink)}
+footer{border-top:1px solid var(--rule);margin-top:40px;padding-top:16px;color:var(--ink-soft);font-size:14px}
+@media (max-width:520px){
+  h1{font-size:22px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div>
+    <h1>Form vs SMTP Email Validator</h1>
+    <p class="tag">Paste email addresses and see whether the browser's <code>type=email</code> rule, RFC 5322 and RFC 5321 each accept them, which rule decided each verdict, and the quoted form SMTP needs when they disagree. Syntax only. Everything runs in this tab.</p>
+  </div>
+  <button id="theme-toggle" type="button" aria-label="Switch to light theme">Light theme</button>
+</header>
+
+<main>
+<section id="check" aria-labelledby="h-check">
+<h2 id="h-check">1. Check addresses</h2>
+<p>One address per line. Each line is checked exactly as typed, never trimmed, so a stray space is part of the address. Blank lines are skipped. Lines over 2000 characters are refused.</p>
+<label for="input">Addresses, one per line</label>
+<textarea id="input" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+<div class="row">
+  <button class="primary" id="run" type="button">Check</button>
+  <button id="loadDiff" type="button">Load the disagreements</button>
+  <button id="loadAll" type="button">Load every self test fixture</button>
+  <button id="clear" type="button">Clear</button>
+</div>
+<p class="soft">Out of scope, because each line is one address: comma separated lists (<code>type=email multiple</code>, RFC 5322 <code>address-list</code>), display names with angle brackets, and header folding across lines.</p>
+<div id="summary" aria-live="polite"></div>
+<div class="scroll" id="tableWrap" tabindex="0" role="region" aria-label="Results table, scrolls sideways"></div>
+</section>
+
+<section id="live" aria-labelledby="h-live">
+<h2 id="h-live">2. Type into a real type=email field</h2>
+<p>This is an ordinary <code>&lt;input type="email"&gt;</code>. Whatever this browser does with what you type is shown underneath, read straight from the element. The HTML Standard says user agents "should convert punycode in the domain labels of the value to IDN in the display and vice versa", so a domain typed with accents may come back as <code>xn--</code> labels in <code>.value</code>. This page reports what this browser returns and does not predict it.</p>
+<label for="realEmail">Email, typed by you</label>
+<input type="email" id="realEmail" spellcheck="false" autocomplete="off">
+<dl class="live" id="liveOut"></dl>
+</section>
+
+<section id="how" aria-labelledby="h-how">
+<h2 id="h-how">3. How each column decides</h2>
+
+<h3>A. Browser form rule (HTML Standard, valid email address)</h3>
+<p>The HTML Standard, section "Email state (<code>type=email</code>)", defines a valid email address and gives this regular expression as an implementation of it. Column A runs it verbatim:</p>
+<pre id="reShow"></pre>
+<p>The same section says outright that it departs from RFC 5322:</p>
+<blockquote>"This requirement is a willful violation of RFC 5322, which defines a syntax for email addresses that is simultaneously too strict (before the "@" character), too vague (after the "@" character), and too lax (allowing comments, whitespace characters, and quoted strings in manners unfamiliar to most users) to be of practical use here."</blockquote>
+<p>Because the rule allows any run of dots before the <code>@</code>, it accepts <code>.john@</code>, <code>a..b@</code> and <code>john.@</code>, which neither RFC accepts. Because it has no quoted strings, comments or address literals, it rejects <code>"john doe"@example.com</code> and <code>user@[192.0.2.1]</code>, which both RFCs accept. The explanation under each verdict comes from a separate hand written checker, and the self test fuzzes that checker against the regex so the two can never drift apart.</p>
+
+<h3>B. This browser, live</h3>
+<p>Each line is assigned to a detached <code>input type=email</code> and the page reads back <code>validity.valid</code>, <code>validity.typeMismatch</code> and <code>.value</code>. The value sanitization algorithm for a single address is "Strip newlines from the value, then strip leading and trailing ASCII whitespace from the value", so a line with spaces around it can be rejected by the regex in column A and accepted here. When the value changes, the column shows what it became. The column is labelled with this browser's own user agent string, and nothing in it is precomputed.</p>
+
+<h3>C. RFC 5322 addr-spec (message format)</h3>
+<p>RFC 5322 is the grammar for addresses inside a message, in header fields such as <code>From:</code> and <code>To:</code>. It is not the SMTP grammar. Column C is a recursive descent parser, not one large regular expression, because comments nest without limit and a backtracking regex for them can take exponential time. There are four outcomes:</p>
+<ul>
+  <li><b>VALID</b>: a dot-atom or quoted-string, <code>@</code>, then a dot-atom or domain-literal, with no comments or white space outside them.</li>
+  <li><b>VALID ONLY WITH COMMENTS OR FOLDING WHITE SPACE</b>: the section 3 grammar matches only because of CFWS (section 3.2.2), such as <code>john(comment)@example.com</code>. Section 3.4.1: "Comments and folding white space SHOULD NOT be used around the "@" in the addr-spec."</li>
+  <li><b>VALID ONLY UNDER OBSOLETE SYNTAX</b>: matches only with section 4.4 <code>obs-local-part</code> or <code>obs-domain</code>, or the section 4.1 obsolete characters. Section 4 says these forms "MUST NOT be generated" and "MUST be accepted and parsed by a conformant receiver".</li>
+  <li><b>INVALID</b>: none of the above.</li>
+</ul>
+<pre>addr-spec       =   local-part "@" domain
+local-part      =   dot-atom / quoted-string / obs-local-part
+domain          =   dot-atom / domain-literal / obs-domain
+domain-literal  =   [CFWS] "[" *([FWS] dtext) [FWS] "]" [CFWS]
+quoted-string   =   [CFWS] DQUOTE *([FWS] qcontent) [FWS] DQUOTE [CFWS]
+obs-local-part  =   word *("." word)
+obs-domain      =   atom *("." atom)</pre>
+<p class="soft">RFC 5322 sections 3.2.1 to 3.2.4, 3.4.1 and 4.4. One line holds one address, so folding white space here is a run of spaces or tabs; there is no CRLF to fold on. When a quoted local part could have been written as a dot-atom, the results note section 3.4.1: "the dot-atom form SHOULD be used and the quoted-string form SHOULD NOT be used".</p>
+
+<h3>D. RFC 5321 Mailbox (SMTP envelope)</h3>
+<p>RFC 5321 is the grammar for the address an SMTP client sends in <code>MAIL FROM</code> and <code>RCPT TO</code>. It has no comments, no white space and no obsolete forms, and its domain is a hostname or an address literal.</p>
+<pre>Mailbox        = Local-part "@" ( Domain / address-literal )
+Local-part     = Dot-string / Quoted-string
+Dot-string     = Atom *("."  Atom)
+Quoted-string  = DQUOTE *QcontentSMTP DQUOTE
+qtextSMTP      = %d32-33 / %d35-91 / %d93-126
+quoted-pairSMTP  = %d92 %d32-126
+Domain         = sub-domain *("." sub-domain)
+sub-domain     = Let-dig [Ldh-str]
+IPv4-address-literal  = Snum 3("."  Snum)
+IPv6-address-literal  = "IPv6:" IPv6-addr
+General-address-literal  = Standardized-tag ":" 1*dcontent</pre>
+<p class="soft">RFC 5321 sections 4.1.2 and 4.1.3. The checks the ABNF alone does not make, and that this column does:</p>
+<ul>
+  <li><b>Snum</b> is 0 to 255, from the ABNF comment, so <code>[300.1.1.1]</code> is invalid here and valid RFC 5322 (where <code>dtext</code> takes any printable character).</li>
+  <li><b>IPv6-comp</b> allows "No more than 6 groups in addition to the "::"", and IPv6v4-comp no more than 4 plus the IPv4 part. IPv6-full is exactly 8 groups. The <code>IPv6:</code> tag is matched in any case because RFC 5234 section 2.3 says "ABNF strings are case insensitive".</li>
+  <li><b>General-address-literal</b>: the tag "MUST be specified in a Standards-Track RFC and registered with IANA". The IANA Address Literal Tags registry listed only <code>IPv6</code> when it was checked on 2026-10-01, so any other tag, such as the <code>dead</code> in <code>cow@[dead::beef]</code>, is reported INVALID (unregistered tag).</li>
+  <li><b>Underscore</b> in a hostname: section 4.1.2, "the underscore character is not permitted".</li>
+</ul>
+
+<h3>E. Translation</h3>
+<p>RFC 5321 section 4.1.2: "all quoted forms MUST be treated as equivalent, and the sending system SHOULD transmit the form that uses the minimum quoting possible". Column E takes the local part's content (quotes removed, quoted-pairs unescaped, comments dropped), then:</p>
+<ol>
+  <li>if the content is a valid Dot-string, it is sent unquoted;</li>
+  <li>otherwise, if every character is printable ASCII or space, it is wrapped in double quotes, with <code>"</code> and <code>\</code> escaped by a backslash, so <code>.john@example.com</code> becomes <code>".john"@example.com</code>, which is a valid RFC 5321 Mailbox;</li>
+  <li>otherwise there is no RFC 5321 form: non-ASCII needs SMTPUTF8 (RFC 6531) and control characters have none.</li>
+</ol>
+<p>It also goes the other way. When the browser rule rejects an address whose content uses only characters the rule allows, the column shows the spelling the form would accept: <code>"john..doe"@example.com</code> becomes <code>john..doe@example.com</code>. Address-literal domains have no form side spelling, and hostnames with an underscore, a <code>!</code> or a leading hyphen have no SMTP spelling.</p>
+</section>
+
+<section id="sizes" aria-labelledby="h-sizes">
+<h2 id="h-sizes">4. 64, 255, 256 and 254 are not validity limits</h2>
+<p>RFC 5321 section 4.5.3.1 lists the local-part at 64 octets (4.5.3.1.1), the domain at 255 octets (4.5.3.1.2) and the path at 256 octets "including the punctuation and element separators" (4.5.3.1.3). It frames them as a floor for receivers, not a rule about syntax: "Every implementation MUST be able to receive objects of at least these sizes. Objects larger than these sizes SHOULD be avoided", and clients "MUST be prepared for a server to reject them". So this page reports an oversize address as exceeding the size every server must accept, and never as invalid. Lengths are counted in octets of UTF-8, not in characters.</p>
+<p>The figure 254 is not in RFC 5321. It comes from RFC 3696 (Informational, February 2004) erratum 1690, status Verified, which derives it from the 256 octet path minus the two angle brackets in <code>Path = "&lt;" [ A-d-l ":" ] Mailbox "&gt;"</code>. The erratum text itself refers to RFC 2821, the predecessor of RFC 5321.</p>
+<p>A hostname label longer than 63 octets matches the RFC 5321 ABNF, which sets no length, but cannot exist in DNS: RFC 1035 section 2.3.4, "labels 63 octets or less". The browser rule rejects it through its <code>{0,61}</code>.</p>
+<p>Two more notes the results add when they apply. A single label domain such as <code>user@localhost</code> is valid in all three grammars, but RFC 5321 section 2.3.5 says "Only resolvable, fully-qualified domain names (FQDNs) are permitted" and "Local aliases MUST NOT appear in any SMTP transaction". And an uppercase local part matters: section 2.4, "The local-part of a mailbox MUST BE treated as case sensitive". Domains are not.</p>
+<p>Non-ASCII addresses are invalid in all three base grammars. The RFC 6532 section 3.2 extension (<code>atext</code>, <code>qtext</code>, <code>dtext =/ UTF8-non-ascii</code>) and the RFC 6531 section 3.3 extension (<code>atext</code>, <code>qtextSMTP =/ UTF8-non-ascii</code>, <code>sub-domain =/ U-label</code>) would allow some of them, and the results say so. This page does not perform the RFC 5890 IDNA2008 check a U-label needs, so it never calls a non-ASCII domain valid under RFC 6531.</p>
+</section>
+
+<section id="uses" aria-labelledby="h-uses">
+<h2 id="h-uses">5. What to use it for</h2>
+<ul>
+  <li><b>A signup form refused a real address.</b> Paste it. If column A rejects and column D accepts, the address is deliverable over SMTP and the form rule is the obstacle. Column E gives the spelling the form would take, when one exists.</li>
+  <li><b>Your form accepted an address your mail server cannot send to.</b> Addresses such as <code>.john@</code> or <code>a..b@</code> pass the browser rule and fail RFC 5321. Column E gives the quoted form, <code>".john"@example.com</code>, to try in the SMTP envelope.</li>
+  <li><b>Choosing the right check for the right layer.</b> The form, the message header and the SMTP envelope are three different grammars. Paste your own test cases and see which layer each one breaks.</li>
+  <li><b>Writing tests for a validator.</b> Load every fixture, and copy any row whose verdicts surprise you into your own test suite with the deciding rule beside it.</li>
+  <li><b>Checking what this browser does.</b> Column B and section 2 show this browser's own validity flags and value sanitization, measured now rather than quoted from a table.</li>
+</ul>
+<p>What it cannot do: it checks syntax only. It does no DNS or MX lookup, makes no network call, and cannot tell whether a mailbox exists or accepts mail.</p>
+</section>
+
+<section id="selftest" aria-labelledby="h-self">
+<h2 id="h-self">6. Self test</h2>
+<p>Runs when the page loads. It checks every engine against fixtures derived by hand from the ABNF, fuzzes the column A explainer against the verbatim regex, the column D parser against a separately built regular expression for RFC 5321, and the column C parser against separately built regular expressions for RFC 5322 with comments nested at most three deep. It includes a check designed to fail, so a test that silently stops running is visible, and it feeds pathological 2000 character lines through every engine to show none of them hangs. The live browser column is reported, never asserted.</p>
+<div class="row"><button id="rerun" type="button">Run the self test again</button></div>
+<div id="selfOut" aria-live="polite"></div>
+</section>
+</main>
+
+<footer>
+  <p>Independent tool, not affiliated with or endorsed by the WHATWG, the IETF, the RFC Editor, IANA or any browser vendor. The regular expression in column A is copied verbatim from the HTML Standard (Copyright &copy; WHATWG (Apple, Google, Mozilla, Microsoft), BSD 3-Clause License for that code; the quoted sentence is under CC BY 4.0). ABNF lines shown are short citations from RFC 5321 and RFC 5322, Copyright (C) The IETF Trust (2008). The RFC 5321 and RFC 5322 parsers are reimplemented from the published ABNF; no code is reproduced.</p>
+  <p>Sources, as plain text so this page links nowhere it does not need to: the HTML Standard, html.spec.whatwg.org/multipage/input.html#valid-e-mail-address; RFC 5322, RFC 5321, RFC 6531, RFC 6532, RFC 1035 and RFC 5234 at www.rfc-editor.org/rfc/; RFC 3696 erratum 1690 and RFC 5321 erratum 5414 at www.rfc-editor.org/errata/; and the IANA Address Literal Tags registry at www.iana.org/assignments/address-literal-tags/. The README lists every fact with its full URL.</p>
+  <p>MIT licensed. <a href="https://github.com/0xelitesystem/form-vs-smtp-email-validator">Source on GitHub</a>. Built by <a href="https://elitesystem.ai">elitesystem.ai</a>.</p>
+</footer>
+</div>
+<script>
+(function(){
+"use strict";
+
+/* ---------- theme ---------- */
+var root = document.documentElement, tbtn = document.getElementById('theme-toggle');
+var THEME_KEY = 'form-vs-smtp-email-validator-theme';
+function stored(){ try { return localStorage.getItem(THEME_KEY); } catch(e){ return null; } }
+function save(v){ try { localStorage.setItem(THEME_KEY, v); } catch(e){} }
+function effective(){
+  var a = root.getAttribute('data-theme');
+  if (a === 'light' || a === 'dark') return a;
+  try { if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light'; } catch(e){}
+  return 'dark';
+}
+function paintBtn(){
+  var to = effective() === 'dark' ? 'light' : 'dark';
+  tbtn.textContent = to === 'light' ? 'Light theme' : 'Dark theme';
+  tbtn.setAttribute('aria-label', 'Switch to ' + to + ' theme');
+}
+var s0 = stored();
+if (s0 === 'light' || s0 === 'dark') root.setAttribute('data-theme', s0);
+paintBtn();
+tbtn.addEventListener('click', function(){
+  var next = effective() === 'dark' ? 'light' : 'dark';
+  root.setAttribute('data-theme', next); save(next); paintBtn();
+});
+
+/* ENGINE-START */
+/* ---------- A. HTML Standard, valid email address ---------- */
+/* Source: HTML Standard, https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address, copied verbatim. Copyright WHATWG (Apple, Google, Mozilla, Microsoft), BSD 3-Clause License (see README, Third-party notices). */
+var WHATWG_RE = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+/* Builds a string from code points in chunks: String.fromCodePoint.apply on a huge array overflows the call stack. */
+function fromCps(a){ var s = ''; for (var i = 0; i < a.length; i += 4096) s += String.fromCodePoint.apply(null, a.slice(i, i + 4096)); return s; }
+function U(cp){ var h = cp.toString(16).toUpperCase(); while (h.length < 4) h = '0' + h; return 'U+' + h; }
+function showChar(cp){
+  if (cp === 32) return 'space (U+0020)';
+  if (cp === 9) return 'tab (U+0009)';
+  if (cp < 32 || cp === 127) return 'control character ' + U(cp);
+  if (cp > 126) return '"' + String.fromCodePoint(cp) + '" (' + U(cp) + ', not ASCII)';
+  return '"' + String.fromCharCode(cp) + '"';
+}
+function cps(s){ var a = []; for (var i = 0; i < s.length; i++){ var c = s.codePointAt(i); a.push(c); if (c > 0xffff) i++; } return a; }
+function isAlpha(c){ return (c >= 65 && c <= 90) || (c >= 97 && c <= 122); }
+function isDigit(c){ return c >= 48 && c <= 57; }
+/* atext, RFC 5322 section 3.2.3 (also the browser rule's local-part set minus ".") */
+var ATEXT_PUNCT = "!#$%&'*+-/=?^_`{|}~";
+function isAtext(c){ return isAlpha(c) || isDigit(c) || (c < 128 && ATEXT_PUNCT.indexOf(String.fromCharCode(c)) >= 0); }
+function isWLocal(c){ return c === 46 || isAtext(c); }
+function isLDH(c){ return isAlpha(c) || isDigit(c) || c === 45; }
+
+function explainW(s){
+  var a = cps(s), ats = [], i;
+  for (i = 0; i < a.length; i++) if (a[i] === 64) ats.push(i);
+  if (ats.length === 0) return { ok: false, why: 'no "@"' };
+  if (ats.length > 1) return { ok: false, why: ats.length + ' "@" characters; the rule allows exactly one' };
+  var local = a.slice(0, ats[0]), dom = a.slice(ats[0] + 1);
+  if (local.length === 0) return { ok: false, why: 'empty local part (nothing before "@")' };
+  for (i = 0; i < local.length; i++) if (!isWLocal(local[i])) return { ok: false, why: 'local part character ' + showChar(local[i]) + ' is outside the allowed set (letters, digits, . and !#$%&\'*+/=?^_`{|}~-)' };
+  if (dom.length === 0) return { ok: false, why: 'empty domain (nothing after "@")' };
+  var labels = [[]];
+  for (i = 0; i < dom.length; i++){ if (dom[i] === 46) labels.push([]); else labels[labels.length - 1].push(dom[i]); }
+  for (var k = 0; k < labels.length; k++){
+    var L = labels[k];
+    if (L.length === 0) return { ok: false, why: 'empty domain label (a leading, trailing or doubled ".")' };
+    for (i = 0; i < L.length; i++) if (!isLDH(L[i])) return { ok: false, why: 'domain character ' + showChar(L[i]) + ' is not a letter, digit or hyphen' };
+    var txt = fromCps(L);
+    if (L[0] === 45) return { ok: false, why: 'label "' + txt + '" starts with a hyphen' };
+    if (L[L.length - 1] === 45) return { ok: false, why: 'label "' + txt + '" ends with a hyphen' };
+    if (L.length > 63) return { ok: false, why: 'label of ' + L.length + ' characters; the rule allows 1 to 63' };
+  }
+  return { ok: true, why: 'allowed local characters, one "@", then letter-digit-hyphen labels of 1 to 63 characters' };
+}
+
+/* ---------- C. RFC 5322 addr-spec, recursive descent over a token stream ---------- */
+function isWSP(c){ return c === 32 || c === 9; }
+function obsNoWsCtl(c){ return (c >= 1 && c <= 8) || c === 11 || c === 12 || (c >= 14 && c <= 31) || c === 127; }
+function isCtext(c){ return (c >= 33 && c <= 39) || (c >= 42 && c <= 91) || (c >= 93 && c <= 126); }
+function isQtext(c){ return c === 33 || (c >= 35 && c <= 91) || (c >= 93 && c <= 126); }
+function isDtext(c){ return (c >= 33 && c <= 90) || (c >= 94 && c <= 126); }
+
+/* Lexer. Every construct starts with a distinct character, so this is a single left-to-right pass.
+   Comments nest without limit: a depth counter, no recursion, no backtracking. */
+function lex5322(s, utf8){
+  var a = cps(s), n = a.length, i = 0, toks = [], obs = false, c, d, start;
+  function fail(msg){ return { err: msg, toks: toks, obs: obs }; }
+  function pair(){ /* a quoted-pair at a[i] === 92; returns null or an error */
+    if (i + 1 >= n) return 'a backslash at the very end has nothing to quote';
+    d = a[i + 1];
+    if ((d >= 33 && d <= 126) || isWSP(d)) return null;
+    if (d === 0 || obsNoWsCtl(d) || d === 10 || d === 13){ obs = true; return null; }
+    if (d > 127 && utf8) return null;
+    return 'backslash followed by ' + showChar(d) + ' is not a quoted-pair';
+  }
+  while (i < n){
+    c = a[i];
+    if (isWSP(c)){ start = i; while (i < n && isWSP(a[i])) i++; toks.push({ t: 'ws' }); continue; }
+    if (c === 40){
+      var depth = 1; i++;
+      while (i < n && depth > 0){
+        c = a[i];
+        if (c === 40){ depth++; i++; }
+        else if (c === 41){ depth--; i++; }
+        else if (c === 92){ var e = pair(); if (e) return fail(e + ' (inside a comment)'); i += 2; }
+        else if (isWSP(c) || isCtext(c)) i++;
+        else if (obsNoWsCtl(c)){ obs = true; i++; }
+        else if (c > 127 && utf8) i++;
+        else return fail(showChar(c) + ' is not allowed inside a comment');
+      }
+      if (depth > 0) return fail('a comment "(" is never closed');
+      toks.push({ t: 'comment' }); continue;
+    }
+    if (c === 41) return fail('")" with no matching "("');
+    if (c === 34){
+      var content = []; i++; var closed = false;
+      while (i < n){
+        c = a[i];
+        if (c === 34){ closed = true; i++; break; }
+        if (c === 92){ var e2 = pair(); if (e2) return fail(e2 + ' (inside quotes)'); content.push(a[i + 1]); i += 2; continue; }
+        if (isWSP(c) || isQtext(c)){ content.push(c); i++; continue; }
+        if (obsNoWsCtl(c)){ obs = true; content.push(c); i++; continue; }
+        if (c > 127 && utf8){ content.push(c); i++; continue; }
+        return fail(showChar(c) + ' is not allowed inside quotes');
+      }
+      if (!closed) return fail('a quoted string is never closed');
+      toks.push({ t: 'qs', v: fromCps(content) }); continue;
+    }
+    if (c === 91){
+      start = i; i++; var shut = false;
+      while (i < n){
+        c = a[i];
+        if (c === 93){ shut = true; i++; break; }
+        if (c === 91) return fail('"[" inside a domain literal');
+        if (c === 92){ var e3 = pair(); if (e3) return fail(e3 + ' (inside a domain literal)'); obs = true; i += 2; continue; }
+        if (isWSP(c) || isDtext(c)){ i++; continue; }
+        if (obsNoWsCtl(c)){ obs = true; i++; continue; }
+        if (c > 127 && utf8){ i++; continue; }
+        return fail(showChar(c) + ' is not allowed inside a domain literal');
+      }
+      if (!shut) return fail('a domain literal "[" is never closed');
+      toks.push({ t: 'lit', v: fromCps(a.slice(start, i)) }); continue;
+    }
+    if (c === 93) return fail('"]" with no matching "["');
+    if (c === 46){ toks.push({ t: 'dot' }); i++; continue; }
+    if (c === 64){ toks.push({ t: 'at' }); i++; continue; }
+    if (isAtext(c) || (c > 127 && utf8)){
+      start = i; while (i < n && (isAtext(a[i]) || (a[i] > 127 && utf8))) i++;
+      toks.push({ t: 'atom', v: fromCps(a.slice(start, i)) }); continue;
+    }
+    return fail(showChar(c) + ' is not allowed outside quotes, comments or brackets');
+  }
+  return { err: null, toks: toks, obs: obs };
+}
+function isCF(t){ return t.t === 'ws' || t.t === 'comment'; }
+function stripCF(toks){
+  var s = 0, e = toks.length;
+  while (s < e && isCF(toks[s])) s++;
+  while (e > s && isCF(toks[e - 1])) e--;
+  return { core: toks.slice(s, e), outer: s > 0 || e < toks.length };
+}
+function dotAtomText(core){ /* atom ("." atom)* with nothing in between */
+  if (!core.length || core.length % 2 === 0) return null;
+  var out = [];
+  for (var i = 0; i < core.length; i++){
+    if (i % 2 === 0){ if (core[i].t !== 'atom') return null; out.push(core[i].v); }
+    else if (core[i].t !== 'dot') return null;
+  }
+  return out.join('.');
+}
+function obsSeq(toks, allowQs){ /* word *("." word) once CFWS is dropped */
+  var core = toks.filter(function(t){ return !isCF(t); });
+  if (!core.length || core.length % 2 === 0) return null;
+  var out = [];
+  for (var i = 0; i < core.length; i++){
+    if (i % 2 === 0){
+      if (core[i].t === 'atom' || (allowQs && core[i].t === 'qs')) out.push(core[i].v); else return null;
+    } else if (core[i].t !== 'dot') return null;
+  }
+  return out.join('.');
+}
+function whyLocal(core){
+  var nc = core.filter(function(t){ return !isCF(t); });
+  if (!nc.length) return 'the local part is empty';
+  if (nc[0].t === 'dot') return 'the local part starts with "."';
+  if (nc[nc.length - 1].t === 'dot') return 'the local part ends with "."';
+  for (var i = 1; i < nc.length; i++){
+    if (nc[i].t === 'dot' && nc[i - 1].t === 'dot') return 'the local part has two "." in a row';
+    if (nc[i].t !== 'dot' && nc[i - 1].t !== 'dot') return 'two words in the local part are not separated by "."';
+  }
+  for (i = 0; i < nc.length; i++) if (nc[i].t === 'lit') return 'a "[...]" literal cannot be a local part';
+  return 'the local part does not match dot-atom, quoted-string or obs-local-part';
+}
+function whyDomain(core){
+  var nc = core.filter(function(t){ return !isCF(t); });
+  if (!nc.length) return 'the domain is empty';
+  if (nc[0].t === 'dot') return 'the domain starts with "."';
+  if (nc[nc.length - 1].t === 'dot') return 'the domain ends with "."';
+  for (var i = 1; i < nc.length; i++){
+    if (nc[i].t === 'dot' && nc[i - 1].t === 'dot') return 'the domain has two "." in a row';
+    if (nc[i].t !== 'dot' && nc[i - 1].t !== 'dot') return 'two parts of the domain are not separated by "."';
+  }
+  for (i = 0; i < nc.length; i++){
+    if (nc[i].t === 'qs') return 'a quoted string cannot appear in the domain';
+    if (nc[i].t === 'lit') return 'a domain literal must be the whole domain';
+  }
+  return 'the domain does not match dot-atom, domain-literal or obs-domain';
+}
+/* tier: 0 = VALID, 1 = only with CFWS, 2 = only under obsolete syntax, -1 = INVALID */
+function parse5322(s, utf8){
+  var lx = lex5322(s, !!utf8);
+  if (lx.err) return { tier: -1, why: lx.err };
+  var toks = lx.toks, ats = [];
+  for (var i = 0; i < toks.length; i++) if (toks[i].t === 'at') ats.push(i);
+  if (ats.length !== 1) return { tier: -1, why: ats.length ? ats.length + ' "@" outside quotes, comments and brackets; addr-spec has exactly one' : 'no "@" outside quotes, comments and brackets' };
+  var L = toks.slice(0, ats[0]), D = toks.slice(ats[0] + 1);
+  var r = { tier: -1, why: '', obsChars: lx.obs };
+  /* local part */
+  var ls = stripCF(L), lt, content, lkind;
+  var dat = dotAtomText(ls.core);
+  if (dat !== null){ lt = ls.outer ? 1 : 0; content = dat; lkind = 'dot-atom'; }
+  else if (ls.core.length === 1 && ls.core[0].t === 'qs'){ lt = ls.outer ? 1 : 0; content = ls.core[0].v; lkind = 'quoted-string'; }
+  else {
+    var ol = obsSeq(L, true);
+    if (ol === null) return { tier: -1, why: whyLocal(L) };
+    lt = 2; content = ol; lkind = 'obs-local-part';
+  }
+  /* domain */
+  var ds = stripCF(D), dt, dcore, dkind;
+  var dd = dotAtomText(ds.core);
+  if (dd !== null){ dt = ds.outer ? 1 : 0; dcore = dd; dkind = 'dot-atom'; }
+  else if (ds.core.length === 1 && ds.core[0].t === 'lit'){ dt = ds.outer ? 1 : 0; dcore = ds.core[0].v; dkind = 'domain-literal'; }
+  else {
+    var od = obsSeq(D, false);
+    if (od === null) return { tier: -1, why: whyDomain(D) };
+    dt = 2; dcore = od; dkind = 'obs-domain';
+  }
+  r.tier = Math.max(lt, dt, lx.obs ? 2 : 0);
+  r.local = content; r.domain = dcore; r.lkind = lkind; r.dkind = dkind;
+  r.cfws = lt === 1 || dt === 1;
+  r.why = lkind + ' "@" ' + dkind + (lx.obs ? ', with obsolete characters (section 4.1)' : '');
+  return r;
+}
+
+/* ---------- D. RFC 5321 Mailbox, sections 4.1.2 and 4.1.3 ---------- */
+function isHex(ch){ return /^[0-9A-Fa-f]$/.test(ch); }
+function hexGroup(g){ if (g.length < 1 || g.length > 4) return false; for (var i = 0; i < g.length; i++) if (!isHex(g[i])) return false; return true; }
+function ipv4(s){
+  var p = s.split('.');
+  if (p.length !== 4) return 'an IPv4 literal is four numbers separated by "."';
+  for (var i = 0; i < 4; i++){
+    if (!/^[0-9]{1,3}$/.test(p[i])) return '"' + p[i] + '" is not a Snum (1 to 3 digits)';
+    if (parseInt(p[i], 10) > 255) return 'Snum ' + p[i] + ' is over 255 (the ABNF comment limits it to 0 through 255)';
+  }
+  return null;
+}
+function ipv6(s){
+  var v4 = null, body = s, idx = s.lastIndexOf(':');
+  if (s.indexOf('.') >= 0){
+    if (idx < 0) return 'no ":" groups before the IPv4 part';
+    v4 = s.slice(idx + 1); body = s.slice(0, idx + 1);
+    var e4 = ipv4(v4); if (e4) return 'embedded IPv4: ' + e4;
+  }
+  var parts = body.split('::');
+  if (parts.length > 2) return '"::" appears more than once';
+  function groups(str, trailingColonOk){
+    if (str === '') return [];
+    if (trailingColonOk){ if (str[str.length - 1] !== ':') return null; str = str.slice(0, -1); if (str === '') return null; }
+    var g = str.split(':');
+    for (var i = 0; i < g.length; i++) if (!hexGroup(g[i])) return null;
+    return g;
+  }
+  if (parts.length === 1){
+    var g = groups(body, v4 !== null);
+    if (!g) return 'a group is empty or is not 1 to 4 hex digits';
+    var need = v4 !== null ? 6 : 8;
+    if (g.length !== need) return (v4 !== null ? 'IPv6v4-full needs exactly 6 hex groups before the IPv4 part' : 'IPv6-full needs exactly 8 groups') + ', found ' + g.length;
+    return null;
+  }
+  var left = groups(parts[0], false);
+  var right = v4 !== null ? (parts[1] === '' ? [] : groups(parts[1], true)) : groups(parts[1], false);
+  if (!left || !right) return 'a group is empty or is not 1 to 4 hex digits';
+  var total = left.length + right.length, max = v4 !== null ? 4 : 6;
+  if (total > max) return (v4 !== null ? 'IPv6v4-comp' : 'IPv6-comp') + ' allows at most ' + max + ' groups besides "::", found ' + total;
+  return null;
+}
+function parseDomain5321(dom){
+  if (dom === '') return { ok: false, why: 'the domain is empty' };
+  if (dom[0] === '['){
+    if (dom[dom.length - 1] !== ']' || dom.length < 2) return { ok: false, why: 'an address literal must end with "]"' };
+    var inner = dom.slice(1, -1);
+    if (/^ipv6:/i.test(inner)){
+      var e6 = ipv6(inner.slice(5));
+      return e6 ? { ok: false, why: 'invalid IPv6 literal: ' + e6, kind: 'ipv6' } : { ok: true, kind: 'ipv6' };
+    }
+    var colon = inner.indexOf(':');
+    if (colon >= 0){
+      var tag = inner.slice(0, colon), rest = inner.slice(colon + 1), gram = /^[A-Za-z0-9-]*[A-Za-z0-9]$/.test(tag) && rest.length > 0;
+      for (var i = 0; gram && i < rest.length; i++){ var cc = rest.charCodeAt(i); if (!((cc >= 33 && cc <= 90) || (cc >= 94 && cc <= 126))) gram = false; }
+      if (!gram) return { ok: false, why: 'not an IPv4, IPv6 or General-address-literal', kind: 'general' };
+      return { ok: false, why: 'unregistered tag "' + tag + '": the General-address-literal ABNF matches, but section 4.1.3 requires the tag to be registered with IANA', kind: 'general' };
+    }
+    var e4 = ipv4(inner);
+    return e4 ? { ok: false, why: 'invalid IPv4 literal: ' + e4, kind: 'ipv4' } : { ok: true, kind: 'ipv4' };
+  }
+  var labels = dom.split('.');
+  for (var k = 0; k < labels.length; k++){
+    var L = labels[k];
+    if (L === '') return { ok: false, why: 'empty sub-domain (a leading, trailing or doubled ".")' };
+    for (var j = 0; j < L.length; j++){
+      var c = L.charCodeAt(j);
+      if (c === 95) return { ok: false, why: 'underscore in "' + L + '": section 4.1.2, "the underscore character is not permitted"' };
+      if (!isLDH(c)) return { ok: false, why: 'sub-domain character ' + showChar(L.codePointAt(j)) + ' is not a letter, digit or hyphen' };
+    }
+    if (L[0] === '-') return { ok: false, why: 'sub-domain "' + L + '" starts with a hyphen (Let-dig required)' };
+    if (L[L.length - 1] === '-') return { ok: false, why: 'sub-domain "' + L + '" ends with a hyphen (Let-dig required)' };
+  }
+  return { ok: true, kind: 'domain' };
+}
+function parse5321(s, utf8){
+  var i, c, local, rest;
+  if (s[0] === '"'){
+    i = 1; var closed = false;
+    while (i < s.length){
+      c = s.charCodeAt(i);
+      if (c === 34){ closed = true; break; }
+      if (c === 92){
+        if (i + 1 >= s.length) return { ok: false, why: 'a backslash at the end has nothing to quote' };
+        var d = s.codePointAt(i + 1);
+        if (!(d >= 32 && d <= 126)) return { ok: false, why: 'quoted-pairSMTP is a backslash then space or printable ASCII, not ' + showChar(d) };
+        i += 2; continue;
+      }
+      var cp = s.codePointAt(i);
+      if (c === 32 || c === 33 || (c >= 35 && c <= 91) || (c >= 93 && c <= 126)){ i++; continue; }
+      if (cp > 127 && utf8){ i += cp > 0xffff ? 2 : 1; continue; }
+      return { ok: false, why: showChar(cp) + ' is not qtextSMTP' };
+    }
+    if (!closed) return { ok: false, why: 'the quoted local part is never closed' };
+    local = s.slice(0, i + 1); rest = s.slice(i + 1);
+    if (rest[0] !== '@') return { ok: false, why: 'the quoted local part must be followed directly by "@"' };
+  } else {
+    var at = s.indexOf('@');
+    if (at < 0) return { ok: false, why: 'no "@"' };
+    local = s.slice(0, at); rest = s.slice(at);
+    if (local === '') return { ok: false, why: 'empty local part' };
+    var atoms = local.split('.');
+    for (var k = 0; k < atoms.length; k++){
+      if (atoms[k] === ''){
+        return { ok: false, why: k === 0 ? 'Dot-string cannot start with "."' : (k === atoms.length - 1 ? 'Dot-string cannot end with "."' : 'Dot-string cannot have two "." in a row') };
+      }
+      var A = cps(atoms[k]);
+      for (var j = 0; j < A.length; j++) if (!isAtext(A[j]) && !(utf8 && A[j] > 127)) return { ok: false, why: 'local part character ' + showChar(A[j]) + ' is not atext' };
+    }
+  }
+  var dom = rest.slice(1);
+  if (dom.indexOf('@') >= 0 && dom[0] !== '[') return { ok: false, why: 'more than one "@" outside quotes' };
+  var dr = parseDomain5321(dom);
+  if (!dr.ok) return { ok: false, why: dr.why, local: local, domain: dom };
+  return { ok: true, local: local, domain: dom, dkind: dr.kind, lkind: local[0] === '"' ? 'Quoted-string' : 'Dot-string', why: (local[0] === '"' ? 'Quoted-string' : 'Dot-string') + ' "@" ' + (dr.kind === 'domain' ? 'Domain' : (dr.kind === 'ipv4' ? 'IPv4 address literal' : 'IPv6 address literal')) };
+}
+
+function octets(s){ return new TextEncoder().encode(s).length; }
+function hasNonAscii(s){ return /[^\x00-\x7f]/.test(s); }
+
+/* Size and semantic notes for a line that splits into local and domain. */
+function notesFor(line, p21, p22){
+  var out = [];
+  var local = null, dom = null;
+  if (p21.local !== undefined){ local = p21.local; dom = p21.domain; }
+  else { var at = line.lastIndexOf('@'); if (at > 0){ local = line.slice(0, at); dom = line.slice(at + 1); } }
+  if (local === null) return out;
+  var lo = octets(local), dmo = octets(dom), mo = octets(local + '@' + dom);
+  if (lo > 64) out.push({ k: 'size', t: 'Local part is ' + lo + ' octets: exceeds the size every server must accept (RFC 5321 section 4.5.3.1.1, local-part 64 octets). A server MAY reject it. This is not a syntax error.' });
+  if (dmo > 255) out.push({ k: 'size', t: 'Domain is ' + dmo + ' octets: exceeds the size every server must accept (RFC 5321 section 4.5.3.1.2, domain 255 octets). A server MAY reject it.' });
+  if (mo + 2 > 256) out.push({ k: 'size', t: 'The path "<' + '...' + '>" would be ' + (mo + 2) + ' octets: exceeds the size every server must accept (RFC 5321 section 4.5.3.1.3, path 256 octets including the punctuation and element separators). A server MAY reject it. RFC 3696 erratum 1690 derives 254 for the address from this.' });
+  if (dom && dom[0] !== '[' && p21.ok){
+    var labels = dom.split('.');
+    for (var i = 0; i < labels.length; i++) if (octets(labels[i]) > 63) out.push({ k: 'dns', t: 'Label of ' + octets(labels[i]) + ' octets matches the RFC 5321 ABNF, which has no length, but cannot exist in DNS: RFC 1035 section 2.3.4, labels 63 octets or less.' });
+    if (labels.length === 1) out.push({ k: 'fqdn', t: 'Single-label domain: grammar valid, but RFC 5321 section 2.3.5 says "Only resolvable, fully-qualified domain names (FQDNs) are permitted" and "Local aliases MUST NOT appear in any SMTP transaction". A semantic rule, not grammar.' });
+  }
+  if (/[A-Z]/.test(local)) out.push({ k: 'case', t: 'Uppercase in the local part: RFC 5321 section 2.4, "The local-part of a mailbox MUST BE treated as case sensitive". Domains are not case sensitive.' });
+  if (local === '""') out.push({ k: 'empty', t: 'Empty quoted local part: valid as RFC 5321 is published (Quoted-string = DQUOTE *QcontentSMTP DQUOTE) and valid RFC 5322. RFC 5321 erratum 5414 (Held for Document Update, reported 2018-06-29) proposes 1*QcontentSMTP.' });
+  if (p22.tier === 0 && p22.lkind === 'quoted-string' && dotAtomFrom(p22.local)) out.push({ k: 'should', t: 'RFC 5322 section 3.4.1: this quoted local part could be a dot-atom, so "the dot-atom form SHOULD be used and the quoted-string form SHOULD NOT be used".' });
+  return out;
+}
+function dotAtomFrom(content){
+  if (content === '') return false;
+  var parts = content.split('.');
+  for (var i = 0; i < parts.length; i++){
+    if (parts[i] === '') return false;
+    var A = cps(parts[i]);
+    for (var j = 0; j < A.length; j++) if (!isAtext(A[j])) return false;
+  }
+  return true;
+}
+
+/* ---------- E. translation, RFC 5321 section 4.1.2 minimum quoting ---------- */
+function minimalLocal(content){
+  if (dotAtomFrom(content)) return { ok: true, v: content };
+  var A = cps(content);
+  for (var i = 0; i < A.length; i++) if (A[i] < 32 || A[i] > 126) return { ok: false, why: 'no RFC 5321 form: non-ASCII needs SMTPUTF8 (RFC 6531); control characters have none' };
+  return { ok: true, v: '"' + content.replace(/["\\]/g, function(m){ return '\\' + m; }) + '"' };
+}
+function translate(line, p22, p22u){
+  var content = null, dom = null, basis;
+  if (p22.tier < 0 && p22u && p22u.tier >= 0){ content = p22u.local; dom = p22u.domain; basis = 'the local part as RFC 5322 with the RFC 6532 extension reads it'; }
+  else if (p22.tier >= 0){ content = p22.local; dom = p22.domain; basis = p22.lkind === 'obs-local-part' ? 'obsolete words joined by ".", comments and white space dropped' : 'the local part as RFC 5322 reads it'; }
+  else {
+    var ats = line.split('@').length - 1;
+    if (ats !== 1) return { smtp: null, why: ats ? 'no translation: more than one "@" outside quotes, so the local part is ambiguous' : 'no translation: no "@"' };
+    var at = line.indexOf('@'), loc = line.slice(0, at);
+    if (/["()\\]/.test(loc)) return { smtp: null, why: 'no translation: the local part could not be read unambiguously' };
+    if (loc === '') return { smtp: null, why: 'no translation: the local part is empty' };
+    content = loc; dom = line.slice(at + 1); basis = 'the local part taken literally';
+  }
+  var res = { basis: basis, content: content };
+  var m = minimalLocal(content), dr = parseDomain5321(dom);
+  if (!m.ok) res.smtpWhy = m.why;
+  else if (!dr.ok) res.smtpWhy = 'no SMTP spelling: ' + dr.why;
+  else { res.smtp = m.v + '@' + dom; res.smtpCheck = parse5321(res.smtp).ok; }
+  /* reverse: the form-side spelling */
+  if (dom[0] === '[') res.formWhy = 'no type=email spelling: address-literal domains have none';
+  else if (content === '') res.formWhy = 'no type=email spelling: the local part is empty';
+  else if (!cps(content).every(isWLocal)) res.formWhy = 'no type=email spelling: the local part has characters outside the browser rule\'s set';
+  else if (!WHATWG_RE.test(content + '@' + dom)) res.formWhy = 'no type=email spelling: the domain fails the browser rule';
+  else res.form = content + '@' + dom;
+  return res;
+}
+
+/* ---------- one line through every engine ---------- */
+function analyse(line){
+  var A = explainW(line), Wre = WHATWG_RE.test(line);
+  var C = parse5322(line, false), D = parse5321(line, false);
+  var r = { line: line, W: Wre, A: A, C: C, D: D };
+  r.nonAscii = hasNonAscii(line);
+  if (r.nonAscii){
+    var C8 = parse5322(line, true);
+    r.C8 = C8;
+    var at = line.lastIndexOf('@'), domPart = at >= 0 ? line.slice(at + 1) : '';
+    r.D8 = parse5321(line, true);
+    r.domNonAscii = hasNonAscii(domPart);
+  }
+  r.notes = notesFor(line, D, C);
+  r.E = translate(line, C, r.C8);
+  return r;
+}
+/* ENGINE-END */
+
+/* SELFTEST-START */
+/* Expected verdicts, derived by hand from the ABNF. W = browser regex, C = RFC 5322 (V valid, C only with
+   comments or folding white space, O only under obsolete syntax, I invalid), D = RFC 5321. n = notes that must appear. */
+var A64 = new Array(65).join('a'), A65 = A64 + 'a', B63 = new Array(64).join('b'), B64 = B63 + 'b';
+var FIXTURES = [
+  ['.john@example.com', 1, 'I', 0, [], '".john"@example.com'],
+  ['a..b@example.com', 1, 'I', 0, []],
+  ['john.@example.com', 1, 'I', 0, []],
+  ['"john doe"@example.com', 0, 'V', 1, []],
+  ['"john..doe"@example.com', 0, 'V', 1, [], null, 'john..doe@example.com'],
+  ['".john"@example.com', 0, 'V', 1, []],
+  ['""@example.com', 0, 'V', 1, ['empty']],
+  ['" "@example.com', 0, 'V', 1, []],
+  ['"a@b"@example.com', 0, 'V', 1, []],
+  ['user@[192.0.2.1]', 0, 'V', 1, []],
+  ['user@[IPv6:2001:db8::1]', 0, 'V', 1, []],
+  ['user@[ipv6:2001:db8::1]', 0, 'V', 1, []],
+  ['user@[IPv6:2001:db8::192.0.2.1]', 0, 'V', 1, []],
+  ['user@[IPv6:::1]', 0, 'V', 1, []],
+  ['user@[300.1.1.1]', 0, 'V', 0, []],
+  ['user@[IPv6:1:2:3:4:5:6:7:8:9]', 0, 'V', 0, []],
+  ['user@[IPv6:1:2:3:4:5:6::7:8:9:10:11:12]', 0, 'V', 0, []],
+  ['cow@[dead::beef]', 0, 'V', 0, []],
+  ['user@[foo]', 0, 'V', 0, []],
+  ['user@exa_mple.com', 0, 'V', 0, []],
+  ['user@-example.com', 0, 'V', 0, []],
+  ['user@a!b.com', 0, 'V', 0, []],
+  ['john(comment)@example.com', 0, 'C', 0, []],
+  ['(sta)vros@example.com', 0, 'C', 0, []],
+  ['user@example.com(io)', 0, 'C', 0, []],
+  ['user @example.com', 0, 'C', 0, []],
+  [' user@example.com ', 0, 'C', 0, []],
+  ['h(a)i@example.com', 0, 'I', 0, []],
+  ['john . doe@example.com', 0, 'O', 0, []],
+  ['john."doe"@example.com', 0, 'O', 0, []],
+  ['user@example.com.', 0, 'I', 0, []],
+  ['user@example..com', 0, 'I', 0, []],
+  ['user@.example.com', 0, 'I', 0, []],
+  ['@example.com', 0, 'I', 0, []],
+  ['user@', 0, 'I', 0, []],
+  ['a@b@c.com', 0, 'I', 0, []],
+  ['a b@example.com', 0, 'I', 0, []],
+  ['user@localhost', 1, 'V', 1, ['fqdn']],
+  ['a@b', 1, 'V', 1, ['fqdn']],
+  ['user@123', 1, 'V', 1, ['fqdn']],
+  ['USER@EXAMPLE.COM', 1, 'V', 1, ['case']],
+  ['user+tag@example.com', 1, 'V', 1, []],
+  ["o'reilly@example.com", 1, 'V', 1, []],
+  ['user@xn--exmple-cua.com', 1, 'V', 1, []],
+  ['x@x.x', 1, 'V', 1, []],
+  [A64 + '@example.com', 1, 'V', 1, []],
+  [A65 + '@example.com', 1, 'V', 1, ['size']],
+  ['user@' + B63 + '.com', 1, 'V', 1, []],
+  ['user@' + B64 + '.com', 0, 'V', 1, ['dns']],
+  ['jöhn@example.com', 0, 'I', 0, ['u6532', 'u6531']],
+  ['user@exämple.com', 0, 'I', 0, ['u6532', 'u6531dom']]
+];
+var TIER = { V: 0, C: 1, O: 2, I: -1 };
+var TIER_LABEL = { '0': 'VALID', '1': 'VALID ONLY WITH COMMENTS OR FOLDING WHITE SPACE', '2': 'VALID ONLY UNDER OBSOLETE SYNTAX', '-1': 'INVALID' };
+
+function noteKinds(r){
+  var k = r.notes.map(function(n){ return n.k; });
+  if (r.nonAscii){
+    if (r.C8 && r.C8.tier >= 0) k.push('u6532');
+    if (r.domNonAscii) k.push('u6531dom'); else if (r.D8 && r.D8.ok) k.push('u6531');
+  }
+  return k;
+}
+function checkFixture(f){
+  var r = analyse(f[0]), errs = [];
+  if (r.W !== !!f[1]) errs.push('browser rule ' + (r.W ? 'accepts' : 'rejects'));
+  if (r.A.ok !== r.W) errs.push('explainer disagrees with the regex');
+  if (r.C.tier !== TIER[f[2]]) errs.push('RFC 5322 gave ' + TIER_LABEL[r.C.tier]);
+  if (r.D.ok !== !!f[3]) errs.push('RFC 5321 gave ' + (r.D.ok ? 'VALID' : 'INVALID'));
+  var nk = noteKinds(r);
+  f[4].forEach(function(k){ if (nk.indexOf(k) < 0) errs.push('missing note ' + k); });
+  if (f[5] !== undefined && f[5] !== null && (r.E.smtp !== f[5] || !r.E.smtpCheck)) errs.push('translation gave ' + r.E.smtp);
+  if (f[6] !== undefined && r.E.form !== f[6]) errs.push('form-side spelling gave ' + r.E.form);
+  return errs;
+}
+
+/* ---- oracles, built independently of the parsers ---- */
+function build5321Oracle(){
+  var at = "[A-Za-z0-9!#$%&'*+\\-/=?^_`{|}~]";
+  var dot = at + '+(?:\\.' + at + '+)*';
+  var qs = '"(?:[\\x20\\x21\\x23-\\x5b\\x5d-\\x7e]|\\\\[\\x20-\\x7e])*"';
+  var sub = '[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?';
+  var domain = sub + '(?:\\.' + sub + ')*';
+  var snum = '(?:[01]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5])';
+  var v4 = snum + '(?:\\.' + snum + '){3}';
+  var h = '[0-9A-Fa-f]{1,4}';
+  function run(k){ return k === 0 ? '' : h + (k > 1 ? '(?::' + h + '){' + (k - 1) + '}' : ''); }
+  var alts = [h + '(?::' + h + '){7}', h + '(?::' + h + '){5}:' + v4];
+  for (var a = 0; a <= 6; a++) for (var b = 0; a + b <= 6; b++) alts.push(run(a) + '::' + run(b));
+  for (a = 0; a <= 4; a++) for (b = 0; a + b <= 4; b++) alts.push(run(a) + '::' + (b ? run(b) + ':' : '') + v4);
+  var v6 = '[Ii][Pp][Vv]6:(?:' + alts.join('|') + ')';
+  return new RegExp('^(?:' + dot + '|' + qs + ')@(?:' + domain + '|\\[(?:' + v4 + '|' + v6 + ')\\])$');
+}
+function build5322Oracles(){
+  var W = '[ \\t]', CTL = '\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f';
+  var at = "[A-Za-z0-9!#$%&'*+\\-/=?^_`{|}~]";
+  function set(strictCls, obs){ return '[' + strictCls + (obs ? CTL : '') + ']'; }
+  function make(obs){
+    var ctext = set('\\x21-\\x27\\x2a-\\x5b\\x5d-\\x7e', obs);
+    var qp = obs ? '\\\\[\\x00-\\x7f]' : '\\\\[\\x21-\\x7e \\t]';
+    var c = '\\((?:' + W + '*(?:' + ctext + '|' + qp + '))*' + W + '*\\)';
+    for (var d = 2; d <= 3; d++) c = '\\((?:' + W + '*(?:' + ctext + '|' + qp + '|' + c + '))*' + W + '*\\)';
+    var cfws = '(?:(?:' + W + '*' + c + ')+' + W + '*|' + W + '+)';
+    var qs = '"(?:' + W + '*(?:' + set('\\x21\\x23-\\x5b\\x5d-\\x7e', obs) + '|' + qp + '))*' + W + '*"';
+    var dtext = obs ? '(?:' + set('\\x21-\\x5a\\x5e-\\x7e', true) + '|\\\\[\\x00-\\x7f])' : set('\\x21-\\x5a\\x5e-\\x7e', false);
+    var dl = '\\[(?:' + W + '*' + dtext + ')*' + W + '*\\]';
+    return { cfws: cfws, qs: qs, dl: dl };
+  }
+  var S = make(false), O = make(true);
+  var dat = at + '+(?:\\.' + at + '+)*';
+  var t0 = new RegExp('^(?:' + dat + '|' + S.qs + ')@(?:' + dat + '|' + S.dl + ')$');
+  var cf = '(?:' + S.cfws + ')?';
+  var t1 = new RegExp('^' + cf + '(?:' + dat + '|' + S.qs + ')' + cf + '@' + cf + '(?:' + dat + '|' + S.dl + ')' + cf + '$');
+  var cfo = '(?:' + O.cfws + ')?';
+  var word = cfo + '(?:' + at + '+|' + O.qs + ')' + cfo;
+  var atom = cfo + at + '+' + cfo;
+  var any = new RegExp('^' + word + '(?:\\.' + word + ')*@(?:' + atom + '(?:\\.' + atom + ')*|' + cfo + O.dl + cfo + ')$');
+  return function(s){ return t0.test(s) ? 0 : t1.test(s) ? 1 : any.test(s) ? 2 : -1; };
+}
+function maxDepth(s){ var d = 0, m = 0; for (var i = 0; i < s.length; i++){ if (s[i] === '\\'){ i++; continue; } if (s[i] === '(') { d++; if (d > m) m = d; } else if (s[i] === ')') d--; } return m; }
+
+/* seeded PRNG so a run is reproducible */
+function rng(seed){ var x = seed >>> 0 || 1; return function(){ x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
+var FUZZ_ALPHA = ['a', 'b', 'Z', '0', '9', '.', '"', '\\', '(', ')', '[', ']', '@', ' ', '-', '_', ':', '!', '\t', '\u0001'];
+function pick(r, arr){ return arr[Math.floor(r() * arr.length)]; }
+function randomString(r, max){ var n = 1 + Math.floor(r() * max), s = ''; for (var i = 0; i < n; i++) s += pick(r, FUZZ_ALPHA); return s; }
+function grammarString(r){
+  var parts = ['a', 'bc', '.', '"x y"', '"a\\"b"', '(c)', '((n))', ' ', '"\\\u0001"', '"\u0001"', '(\u0001)', '[\u0001]', '-', 'x_y', '"' + '"'];
+  var local = '', dom = '', i, n = 1 + Math.floor(r() * 5);
+  for (i = 0; i < n; i++) local += pick(r, parts);
+  var dparts = ['example', 'com', '.', '(c)', ' ', 'a-b', '-x', 'x-', '9', '_', '[192.0.2.1]', '[IPv6:2001:db8::1]', '[1.2.3.256]', '[x:y]', '[IPv6:1::2::3]', '[ \\]'];
+  n = 1 + Math.floor(r() * 4);
+  for (i = 0; i < n; i++) dom += pick(r, dparts);
+  var s = local + '@' + dom;
+  if (r() < 0.3){ var p = Math.floor(r() * s.length); s = s.slice(0, p) + pick(r, FUZZ_ALPHA) + s.slice(p + 1); }
+  return s;
+}
+function ipv6String(r){
+  var g = [], n = Math.floor(r() * 10), i;
+  for (i = 0; i < n; i++) g.push(pick(r, ['1', 'db8', 'ffff', '0', 'abcd', 'g', '12345', '']));
+  var s = g.join(':');
+  if (r() < 0.7){ var p = Math.floor(r() * (g.length + 1)); s = g.slice(0, p).join(':') + '::' + g.slice(p).join(':'); }
+  if (r() < 0.3) s += (s === '' || s.slice(-1) === ':' ? '' : ':') + pick(r, ['192.0.2.1', '1.2.3.256', '1.2.3']);
+  return pick(r, ['u', '"q"']) + '@[' + pick(r, ['IPv6:', 'ipv6:', 'IPV6:', 'x:']) + s + ']';
+}
+function labelString(r){
+  var len = 58 + Math.floor(r() * 10), lab = '';
+  for (var i = 0; i < len; i++) lab += pick(r, ['a', 'b', '0', '-']);
+  return 'u@' + (r() < 0.5 ? lab : 'x.' + lab + (r() < 0.5 ? '.com' : ''));
+}
+
+function runSelfTest(N){
+  N = N || 6000;
+  var out = { fixtures: 0, fixturesPass: 0, failures: [], fuzzA: 0, fuzzAbad: [], fuzzD: 0, fuzzDbad: [], fuzzC: 0, fuzzCbad: [], fuzzCtiers: { '0': 0, '1': 0, '2': 0, '-1': 0 }, fuzzDvalid: 0, fuzzAaccept: 0 };
+  FIXTURES.forEach(function(f){ out.fixtures++; var e = checkFixture(f); if (e.length) out.failures.push(JSON.stringify(f[0]) + ': ' + e.join('; ')); else out.fixturesPass++; });
+  /* translations of every fixture must themselves be valid RFC 5321 */
+  FIXTURES.forEach(function(f){ var r = analyse(f[0]); if (r.E.smtp && !r.E.smtpCheck) out.failures.push(JSON.stringify(f[0]) + ': translation ' + r.E.smtp + ' is not a valid RFC 5321 Mailbox'); if (r.E.form && !WHATWG_RE.test(r.E.form)) out.failures.push(JSON.stringify(f[0]) + ': form-side spelling is rejected by the browser rule'); });
+  /* positive control: designed to fail */
+  var ctl = checkFixture(['.john@example.com', 1, 'I', 1, []]);
+  out.control = ctl.length > 0;
+  var r = rng(20260911), o21 = build5321Oracle(), o22 = build5322Oracles(), s, i;
+  for (i = 0; i < N; i++){
+    s = i % 3 === 0 ? randomString(r, 24) : (i % 3 === 1 ? grammarString(r) : labelString(r));
+    out.fuzzA++;
+    var re = WHATWG_RE.test(s); if (re) out.fuzzAaccept++;
+    if (explainW(s).ok !== re && out.fuzzAbad.length < 5) out.fuzzAbad.push(JSON.stringify(s));
+  }
+  for (i = 0; i < N; i++){
+    s = i % 3 === 0 ? randomString(r, 24) : (i % 3 === 1 ? grammarString(r) : ipv6String(r));
+    out.fuzzD++;
+    var ov = o21.test(s); if (ov) out.fuzzDvalid++;
+    if (parse5321(s).ok !== ov && out.fuzzDbad.length < 5) out.fuzzDbad.push(JSON.stringify(s));
+  }
+  for (i = 0; i < N; i++){
+    s = i % 2 ? randomString(r, 22) : grammarString(r);
+    if (maxDepth(s) > 3) continue;
+    out.fuzzC++;
+    var ot = o22(s); out.fuzzCtiers[ot]++;
+    if (parse5322(s).tier !== ot && out.fuzzCbad.length < 5) out.fuzzCbad.push(JSON.stringify(s) + ' parser ' + parse5322(s).tier + ' oracle ' + ot);
+  }
+  /* linear-time guard: pathological 2000 character lines must finish */
+  var patho = [new Array(1001).join('('), new Array(1001).join('a.'), new Array(1001).join('()'), '"' + new Array(1000).join('\\a'), new Array(2001).join('a') + '@', '[' + new Array(1999).join('\\'), new Array(667).join('(a)') + '@x', new Array(1001).join('.a')];
+  patho.forEach(function(p){ analyse(p.slice(0, 2000)); });
+  out.patho = patho.length;
+  out.ok = out.failures.length === 0 && out.control && !out.fuzzAbad.length && !out.fuzzDbad.length && !out.fuzzCbad.length;
+  return out;
+}
+/* SELFTEST-END */
+
+/* ---------- DOM helpers: text only, never markup from input ---------- */
+function el(id){ return document.getElementById(id); }
+function h(tag, cls, text){ var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined && text !== null) e.textContent = text; return e; }
+function verdict(label, kind, why){ var f = document.createDocumentFragment(); f.appendChild(h('span', 'v v-' + kind, label)); if (why) f.appendChild(h('div', 'why', why)); return f; }
+function vis(s){
+  var out = '';
+  for (var i = 0; i < s.length; i++){
+    var c = s.charCodeAt(i);
+    if (c === 9) out += '[TAB]';
+    else if (c < 32 || c === 127) out += '[' + U(c) + ']';
+    else out += s[i];
+  }
+  return out;
+}
+
+/* ---------- live browser probe ---------- */
+var probe = document.createElement('input');
+probe.type = 'email';
+function liveCheck(line){
+  probe.value = line;
+  return { valid: probe.validity.valid, typeMismatch: probe.validity.typeMismatch, value: probe.value };
+}
+
+var DIFF_SAMPLE = ['.john@example.com', 'a..b@example.com', '"john doe"@example.com', '"john..doe"@example.com', 'user@[192.0.2.1]', 'user@[IPv6:2001:db8::1]', 'john(comment)@example.com', ' user@example.com ', 'john . doe@example.com', 'user@exa_mple.com', 'cow@[dead::beef]', 'user@localhost', '""@example.com', 'USER@EXAMPLE.COM'];
+
+function render(){
+  var raw = el('input').value, lines = raw.split('\n'), rows = [], refused = [], nameAddr = false;
+  for (var i = 0; i < lines.length; i++){
+    var line = lines[i];
+    if (line === '') continue;
+    if (line.length > 2000){ refused.push(i + 1); continue; }
+    rows.push(line);
+  }
+  var wrap = el('tableWrap'), sum = el('summary');
+  wrap.textContent = ''; sum.textContent = '';
+  if (refused.length) sum.appendChild(h('div', 'msg err', 'Refused line ' + refused.join(', ') + ': over 2000 characters. An address that long is not a realistic input, and refusing it keeps the page responsive.'));
+  if (!rows.length){ sum.appendChild(h('p', 'soft', 'Nothing to check yet. Paste addresses above, or load a sample.')); wrap.hidden = true; return; }
+  wrap.hidden = false;
+  var table = h('table'), thead = h('thead'), tr = h('tr');
+  var heads = [['Address', ''], ['A. Browser form rule', 'HTML Standard, valid email address'], ['B. This browser, live', navigator.userAgent], ['C. RFC 5322 addr-spec', 'message format'], ['D. RFC 5321 Mailbox', 'SMTP envelope'], ['E. Translation', 'minimum quoting, both ways']];
+  heads.forEach(function(x){ var th = h('th', null, x[0]); th.scope = 'col'; if (x[1]) th.appendChild(h('small', null, x[1])); tr.appendChild(th); });
+  thead.appendChild(tr); table.appendChild(thead);
+  var tb = h('tbody'), agree = 0, disagree = 0;
+  rows.forEach(function(line){
+    var r = analyse(line), live = liveCheck(line);
+    if (line.indexOf('<') >= 0 && line.indexOf('>') >= 0) nameAddr = true;
+    var row = h('tr');
+    var c0 = h('td', 'addr'); c0.appendChild(h('code', null, vis(line)));
+    var lead = line.length - line.replace(/^ +/, '').length, trail = line.length - line.replace(/ +$/, '').length;
+    var meta = /^ +$/.test(line) ? octets(line) + ' octets, only spaces' : octets(line) + ' octets' + (lead ? ', ' + lead + ' leading space' + (lead > 1 ? 's' : '') : '') + (trail ? ', ' + trail + ' trailing space' + (trail > 1 ? 's' : '') : '');
+    c0.appendChild(h('div', 'why', meta));
+    if (line.indexOf('<') >= 0 && line.indexOf('>') >= 0) c0.appendChild(h('div', 'why', 'This looks like a name-addr (RFC 5322 section 3.4), paste only the address.'));
+    row.appendChild(c0);
+    var cA = h('td'); cA.appendChild(verdict(r.W ? 'ACCEPT' : 'REJECT', r.W ? 'ok' : 'err', r.A.why)); row.appendChild(cA);
+    var cB = h('td');
+    cB.appendChild(verdict(live.valid ? 'ACCEPT' : 'REJECT', live.valid ? 'ok' : 'err', 'valid ' + live.valid + ', typeMismatch ' + live.typeMismatch));
+    if (live.value !== line) cB.appendChild(h('div', 'why', 'value became: ' + vis(live.value)));
+    if (live.valid === r.W) agree++; else { disagree++; cB.appendChild(h('div', 'why', 'differs from the regex in column A')); }
+    row.appendChild(cB);
+    var cC = h('td'), kind = r.C.tier === 0 ? 'ok' : (r.C.tier === -1 ? 'err' : 'warn');
+    cC.appendChild(verdict(TIER_LABEL[r.C.tier], kind, r.C.why));
+    if (r.nonAscii && r.C8){
+      cC.appendChild(h('div', 'why', r.C8.tier >= 0 ? 'Would be allowed by the extension RFC 6532 section 3.2 (atext, qtext, dtext =/ UTF8-non-ascii), as ' + TIER_LABEL[r.C8.tier] + '.' : 'Still invalid with the RFC 6532 section 3.2 extension.'));
+    }
+    row.appendChild(cC);
+    var cD = h('td');
+    cD.appendChild(verdict(r.D.ok ? 'VALID' : 'INVALID', r.D.ok ? 'ok' : 'err', r.D.why));
+    if (r.nonAscii){
+      if (r.domNonAscii) cD.appendChild(h('div', 'why', 'RFC 6531 section 3.3 extends sub-domain with U-label (RFC 5890). This page does not perform that IDNA2008 check, so it makes no RFC 6531 verdict on this domain.'));
+      else if (r.D8 && r.D8.ok) cD.appendChild(h('div', 'why', 'Would be allowed by the extension RFC 6531 section 3.3 (atext, qtextSMTP =/ UTF8-non-ascii), which needs SMTPUTF8.'));
+      else cD.appendChild(h('div', 'why', 'Still invalid with the RFC 6531 section 3.3 extension.'));
+    }
+    row.appendChild(cD);
+    var cE = h('td'), E = r.E;
+    if (E.why) cE.appendChild(h('div', 'why', E.why));
+    else {
+      if (E.smtp){
+        var same = E.smtp === line;
+        cE.appendChild(verdict(same ? 'SMTP: AS TYPED' : 'SMTP FORM', 'info', same ? 'already the minimally quoted RFC 5321 form' : null));
+        if (!same){ cE.appendChild(h('code', null, vis(E.smtp))); cE.appendChild(h('div', 'why', 'from ' + E.basis + (E.smtpCheck ? '; checked valid by column D' : ''))); }
+      } else cE.appendChild(h('div', 'why', E.smtpWhy));
+      if (!r.W){
+        if (E.form){ cE.appendChild(verdict('FORM SPELLING', 'info', null)); cE.appendChild(h('code', null, vis(E.form))); cE.appendChild(h('div', 'why', 'the browser rule accepts this spelling')); }
+        else cE.appendChild(h('div', 'why', E.formWhy));
+      }
+    }
+    row.appendChild(cE);
+    tb.appendChild(row);
+    if (r.notes.length){
+      var nr = h('tr', 'notes'), td = h('td'); td.colSpan = 6;
+      td.appendChild(h('span', null, 'Size and semantic notes for the line above: '));
+      var ul = h('ul'); r.notes.forEach(function(n){ ul.appendChild(h('li', null, n.t)); }); td.appendChild(ul);
+      nr.appendChild(td); tb.appendChild(nr);
+    }
+  });
+  table.appendChild(tb); wrap.appendChild(table);
+  sum.appendChild(h('p', null, rows.length + ' line' + (rows.length === 1 ? '' : 's') + ' checked. This browser\'s live verdict matched the HTML Standard regex on ' + agree + ' of ' + rows.length + (disagree ? '; where they differ, look for value sanitization in column B.' : '.')));
+  if (nameAddr) sum.appendChild(h('p', 'soft', 'Some lines contain "<" and ">". This looks like a name-addr (RFC 5322 section 3.4), paste only the address.'));
+}
+
+function liveField(){
+  var f = el('realEmail'), out = el('liveOut');
+  out.textContent = '';
+  var pairs = [['.value', f.value === '' ? '(empty string)' : vis(f.value)], ['validity.valid', String(f.validity.valid)], ['validity.typeMismatch', String(f.validity.typeMismatch)], ['validity.badInput', String(f.validity.badInput)]];
+  if (f.value.length > 2000) pairs.push(['HTML Standard regex on .value', 'not checked: .value is ' + f.value.length + ' characters, over the 2000 character limit the checker above also refuses']);
+  else if (f.value !== ''){ var r = analyse(f.value); pairs.push(['HTML Standard regex on .value', r.W ? 'accepts' : 'rejects']); }
+  pairs.forEach(function(p){ out.appendChild(h('dt', null, p[0])); out.appendChild(h('dd', 'mono', p[1])); });
+}
+
+function selfTest(){
+  var o = el('selfOut'); o.textContent = '';
+  var res;
+  try { res = runSelfTest(6000); } catch (e){ o.appendChild(h('div', 'msg err', 'Self test crashed: ' + e.message)); return; }
+  o.appendChild(h('div', 'msg ' + (res.ok ? 'ok' : 'err'), res.ok ? 'PASS: every assertion held.' : 'FAIL: see the details below.'));
+  var ul = h('ul');
+  ul.appendChild(h('li', null, 'Fixtures: ' + res.fixturesPass + ' of ' + res.fixtures + ' pass on engines A, C, D and E, including the notes each one must carry.'));
+  res.failures.forEach(function(f){ ul.appendChild(h('li', 'v-err', f)); });
+  ul.appendChild(h('li', null, 'Column A explainer against the verbatim regex: ' + res.fuzzA + ' fuzzed strings (' + res.fuzzAaccept + ' accepted by the regex), ' + res.fuzzAbad.length + ' disagreements.' + (res.fuzzAbad.length ? ' First: ' + res.fuzzAbad.join(', ') : '')));
+  ul.appendChild(h('li', null, 'Column D parser against the RFC 5321 regex oracle: ' + res.fuzzD + ' fuzzed strings (' + res.fuzzDvalid + ' valid), ' + res.fuzzDbad.length + ' disagreements.' + (res.fuzzDbad.length ? ' First: ' + res.fuzzDbad.join(', ') : '')));
+  ul.appendChild(h('li', null, 'Column C parser against the RFC 5322 regex oracles (comment depth 3 or less): ' + res.fuzzC + ' fuzzed strings (' + res.fuzzCtiers['0'] + ' valid, ' + res.fuzzCtiers['1'] + ' only with CFWS, ' + res.fuzzCtiers['2'] + ' only obsolete, ' + res.fuzzCtiers['-1'] + ' invalid), ' + res.fuzzCbad.length + ' disagreements.' + (res.fuzzCbad.length ? ' First: ' + res.fuzzCbad.join(', ') : '')));
+  ul.appendChild(h('li', res.control ? null : 'v-err', res.control ? 'Positive control (asserts .john@example.com is RFC 5321 VALID): control failed as designed.' : 'Positive control did NOT fail. The test harness is broken.'));
+  ul.appendChild(h('li', null, 'Linear-time guard: ' + res.patho + ' pathological 2000 character lines went through every engine and finished.'));
+  var agree = 0, differ = [];
+  FIXTURES.forEach(function(f){ var l = liveCheck(f[0]); if (l.valid === WHATWG_RE.test(f[0])) agree++; else differ.push(vis(f[0])); });
+  ul.appendChild(h('li', null, 'Reported, not asserted: this browser\'s live type=email verdict matched the regex on ' + agree + ' of ' + FIXTURES.length + ' fixtures.' + (differ.length ? ' Differs on: ' + differ.join(' | ') : '')));
+  o.appendChild(ul);
+}
+
+el('reShow').textContent = String(WHATWG_RE);
+el('run').addEventListener('click', render);
+el('loadDiff').addEventListener('click', function(){ el('input').value = DIFF_SAMPLE.join('\n'); render(); });
+el('loadAll').addEventListener('click', function(){ el('input').value = FIXTURES.map(function(f){ return f[0]; }).join('\n'); render(); });
+el('clear').addEventListener('click', function(){ el('input').value = ''; render(); });
+el('realEmail').addEventListener('input', liveField);
+el('rerun').addEventListener('click', selfTest);
+el('input').value = DIFF_SAMPLE.join('\n');
+render();
+liveField();
+setTimeout(selfTest, 0);
+})();
+</script>
+</body>
+</html>
