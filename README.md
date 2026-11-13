@@ -88,7 +88,7 @@ There is no build. One `index.html` with inline CSS and inline JavaScript, no de
 
 ## License
 
-MIT. Copyright (c) 2026 0xelitesystem. See [LICENSE](LICENSE).
+MIT. Copyright (c) 2026 RBL Industries LLC. See [LICENSE](LICENSE).
 
 ## Third-party notices
 
