@@ -131,4 +131,4 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - [email-delivery-path-reader](https://github.com/0xelitesystem/email-delivery-path-reader) - read the headers of a message once it has been delivered.
 - [regex-tester-with-explainer](https://github.com/0xelitesystem/regex-tester-with-explainer) - test and explain your own regular expressions.
-- [unicode-character-inspector](https://github.com/0xelitesystem/unicode-character-inspector) - see exactly which code points a non-ASCII address contains.
+- [unicode-codepoint-breakdown](https://github.com/0xelitesystem/unicode-codepoint-breakdown) - see exactly which code points a non-ASCII address contains.
